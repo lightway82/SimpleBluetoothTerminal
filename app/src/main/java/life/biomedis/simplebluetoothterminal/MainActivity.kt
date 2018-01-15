@@ -14,10 +14,12 @@ import android.content.IntentFilter
 import android.widget.*
 import org.jetbrains.anko.*
 import android.view.View
-import android.widget.ArrayAdapter
+
 
 
 const val REQUEST_ENABLE_BT = 1
+
+
 
 class MainActivity : AppCompatActivity(), AnkoLogger {
 
@@ -38,7 +40,7 @@ class MainActivity : AppCompatActivity(), AnkoLogger {
     private val deviceList: MutableList<BluetoothDevice> = arrayListOf()
 
     private lateinit var scanningProgressDlg: ProgressDialog
-    private lateinit var bondedDevicesAdapter: ArrayAdapter<String>
+    private lateinit var bondedDevicesAdapter: DevicesInfoAdapter
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -58,18 +60,16 @@ class MainActivity : AppCompatActivity(), AnkoLogger {
     }
 
     private fun initDeviceSpinner() {
-        val bondedDevices: MutableList<String> = MutableList(1, { "-" })
-        (bluetoothAdapter?.bondedDevices?.toList() ?: emptyList()).forEach { dev ->
-            bondedDevices += "${dev.name}-${dev.address}"
-        }
+        val bondedDevices: MutableList<BluetoothDeviceDecorator> = MutableList(1,{ BluetoothDeviceDecorator(null) })
 
+        (bluetoothAdapter?.bondedDevices?.toList() ?: emptyList()).forEach { bondedDevices += BluetoothDeviceDecorator(it) }
 
-        // адаптер
-        bondedDevicesAdapter = ArrayAdapter<String>(this, android.R.layout.simple_spinner_item, bondedDevices).apply {
+        bondedDevicesAdapter = DevicesInfoAdapter(this, bondedDevices).apply {
             setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
             deviceSpinner.adapter = this
 
         }
+
 
         with(deviceSpinner) {
             setSelection(0)
@@ -77,7 +77,7 @@ class MainActivity : AppCompatActivity(), AnkoLogger {
             onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
                 override fun onNothingSelected(parent: AdapterView<*>?) = Unit
                 override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
-                    toast(bondedDevices[position])
+                    toast(bondedDevices[position].toString())
                     setDeviceWidgetsState("", true)
                 }
             }
@@ -110,12 +110,12 @@ class MainActivity : AppCompatActivity(), AnkoLogger {
                 if (deviceList.isEmpty()) toast("No devices found")
                 else {
                     bondedDevicesAdapter.clear()
-                    bondedDevicesAdapter.add("-")
-                    bondedDevicesAdapter.addAll(deviceList.map { it.name })
+                    bondedDevicesAdapter.add(null)
+                    bondedDevicesAdapter.addAll(deviceList.map { BluetoothDeviceDecorator(it) })
                     bondedDevicesAdapter.notifyDataSetChanged()
-                    selector("Available devices", deviceList.map { it.name + "\n" + it.address })
+                    selector("Available devices", deviceList.map(BluetoothDevice::toString))
                     { _, i ->
-                        toast("Selected device is ${deviceList[i].let { it.name + "\n" + it.address }}")
+                        toast("Selected device is ${ deviceList[i].let(BluetoothDevice::toString) }")
                         deviceSpinner.setSelection(i)
                         setDeviceWidgetsState("", true)
                     }
